@@ -4,7 +4,7 @@ import {juggler} from '@loopback/repository';
 const config = {
   name: 'mongodbDS',
   connector: 'mongodb',
-  url: '',
+  url: (process.env.CONN_STRING_MONGODB ?? ''),
   host: 'localhost',
   port: 27017,
   user: '',
@@ -27,6 +27,7 @@ export class MongodbDsDataSource extends juggler.DataSource
     @inject('datasources.config.mongodbDS', {optional: true})
     dsConfig: object = config,
   ) {
+    //console.log(process.env.CONN_STRING_MONGODB)
     super(dsConfig);
   }
 }
