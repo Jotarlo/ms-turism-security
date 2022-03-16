@@ -19,7 +19,11 @@ import {
   response,
 } from '@loopback/rest';
 import MD5 from 'crypto-js/MD5';
-import {User, UserAuthenticationCredentials} from '../models';
+import {
+  TwoFactorAuthenticationCode,
+  User,
+  UserAuthenticationCredentials,
+} from '../models';
 import {
   TwoFactorAuthenticationCodeRepository,
   UserRepository,
@@ -211,6 +215,45 @@ export class UserController {
       return user;
     } else {
       throw new HttpErrors[401]('Las credenciales no son correctas.');
+    }
+  }
+
+  @post('/two-factor-authentication')
+  @response(200, {
+    description: 'Identification of users throught 2fa',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(TwoFactorAuthenticationCode),
+      },
+    },
+  })
+  async TwoFACodeVerification(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(TwoFactorAuthenticationCode, {
+            title: 'NewUser',
+            exclude: ['_id'],
+          }),
+        },
+      },
+    })
+    codeData: Omit<TwoFactorAuthenticationCode, '_id'>,
+  ): Promise<boolean> {
+    let isValid = await this.twoFactorAUthenticationCodeRepository.findOne({
+      where: {
+        userId: codeData.userId,
+        code: codeData.code,
+        status: false,
+      },
+    });
+    if (isValid) {
+      this.twoFactorAUthenticationCodeRepository.updateById(isValid._id, {
+        status: true,
+      });
+      return true;
+    } else {
+      return false;
     }
   }
 }
