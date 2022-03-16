@@ -1,6 +1,13 @@
-import {Entity, model, property, belongsTo, hasMany} from '@loopback/repository';
-import {Role} from './role.model';
+import {
+  belongsTo,
+  Entity,
+  hasMany,
+  model,
+  property,
+} from '@loopback/repository';
 import {LogForSingin} from './log-for-singin.model';
+import {Role} from './role.model';
+import {TwoFactorAuthenticationCode} from './two-factor-authentication-code.model';
 
 @model()
 export class User extends Entity {
@@ -25,7 +32,6 @@ export class User extends Entity {
 
   @property({
     type: 'string',
-    required: true,
   })
   password: string;
 
@@ -34,6 +40,9 @@ export class User extends Entity {
 
   @hasMany(() => LogForSingin)
   logForSingins: LogForSingin[];
+
+  @hasMany(() => TwoFactorAuthenticationCode)
+  twoFactorAuthenticationCodes: TwoFactorAuthenticationCode[];
 
   constructor(data?: Partial<User>) {
     super(data);

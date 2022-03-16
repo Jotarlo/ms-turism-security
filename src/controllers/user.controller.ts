@@ -7,23 +7,31 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  HttpErrors,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
-import {User} from '../models';
-import {UserRepository} from '../repositories';
+import MD5 from 'crypto-js/MD5';
+import {User, UserAuthenticationCredentials} from '../models';
+import {
+  TwoFactorAuthenticationCodeRepository,
+  UserRepository,
+} from '../repositories';
+const generator = require('generate-password');
 
 export class UserController {
   constructor(
     @repository(UserRepository)
-    public userRepository : UserRepository,
+    public userRepository: UserRepository,
+    @repository(TwoFactorAuthenticationCodeRepository)
+    public twoFactorAUthenticationCodeRepository: TwoFactorAuthenticationCodeRepository,
   ) {}
 
   @post('/users')
@@ -44,6 +52,18 @@ export class UserController {
     })
     user: Omit<User, '_id'>,
   ): Promise<User> {
+    var generatedPassword = generator.generate({
+      length: 10,
+      numbers: true,
+      lowercase: true,
+      uppercase: true,
+    });
+    let cryptPassword = MD5(generatedPassword).toString();
+    user.password = cryptPassword;
+    console.log(generatedPassword);
+    console.log(cryptPassword);
+
+    // Notificar contraseña al usuario
     return this.userRepository.create(user);
   }
 
@@ -52,9 +72,7 @@ export class UserController {
     description: 'User model count',
     content: {'application/json': {schema: CountSchema}},
   })
-  async count(
-    @param.where(User) where?: Where<User>,
-  ): Promise<Count> {
+  async count(@param.where(User) where?: Where<User>): Promise<Count> {
     return this.userRepository.count(where);
   }
 
@@ -70,9 +88,7 @@ export class UserController {
       },
     },
   })
-  async find(
-    @param.filter(User) filter?: Filter<User>,
-  ): Promise<User[]> {
+  async find(@param.filter(User) filter?: Filter<User>): Promise<User[]> {
     return this.userRepository.find(filter);
   }
 
@@ -106,7 +122,7 @@ export class UserController {
   })
   async findById(
     @param.path.string('id') id: string,
-    @param.filter(User, {exclude: 'where'}) filter?: FilterExcludingWhere<User>
+    @param.filter(User, {exclude: 'where'}) filter?: FilterExcludingWhere<User>,
   ): Promise<User> {
     return this.userRepository.findById(id, filter);
   }
@@ -146,5 +162,55 @@ export class UserController {
   })
   async deleteById(@param.path.string('id') id: string): Promise<void> {
     await this.userRepository.deleteById(id);
+  }
+
+  // own methods
+
+  @post('/user-authentication')
+  @response(200, {
+    description: 'Identification of users',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(UserAuthenticationCredentials),
+      },
+    },
+  })
+  async login(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(UserAuthenticationCredentials, {
+            title: 'User Login',
+          }),
+        },
+      },
+    })
+    credentials: UserAuthenticationCredentials,
+  ): Promise<User | null> {
+    let user = await this.userRepository.findOne({
+      where: {
+        username: credentials.username,
+        password: credentials.password,
+      },
+    });
+    if (user) {
+      var generatatedCode = generator.generate({
+        length: 6,
+        numbers: true,
+        lowercase: false,
+        uppercase: false,
+      });
+      console.log(generatatedCode);
+      let twoFACode = {
+        code: generatatedCode,
+        userId: user._id,
+      };
+      this.twoFactorAUthenticationCodeRepository.create(twoFACode);
+      // Enviar código al usuario
+      user.password = '';
+      return user;
+    } else {
+      throw new HttpErrors[401]('Las credenciales no son correctas.');
+    }
   }
 }
