@@ -10,10 +10,10 @@ export class TwoFactorAuthenticationCode extends Entity {
   _id?: string;
 
   @property({
-    type: 'number',
+    type: 'string',
     required: true,
   })
-  code: number;
+  code: string;
 
   @property({
     type: 'boolean',
@@ -35,4 +35,5 @@ export interface TwoFactorAuthenticationCodeRelations {
   // describe navigational properties here
 }
 
-export type TwoFactorAuthenticationCodeWithRelations = TwoFactorAuthenticationCode & TwoFactorAuthenticationCodeRelations;
+export type TwoFactorAuthenticationCodeWithRelations =
+  TwoFactorAuthenticationCode & TwoFactorAuthenticationCodeRelations;

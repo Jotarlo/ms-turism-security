@@ -1,3 +1,4 @@
+import {service} from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -18,7 +19,6 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import MD5 from 'crypto-js/MD5';
 import {
   TwoFactorAuthenticationCode,
   User,
@@ -28,7 +28,7 @@ import {
   TwoFactorAuthenticationCodeRepository,
   UserRepository,
 } from '../repositories';
-const generator = require('generate-password');
+import {SecurityService} from '../services';
 
 export class UserController {
   constructor(
@@ -36,6 +36,8 @@ export class UserController {
     public userRepository: UserRepository,
     @repository(TwoFactorAuthenticationCodeRepository)
     public twoFactorAUthenticationCodeRepository: TwoFactorAuthenticationCodeRepository,
+    @service(SecurityService)
+    public securityService: SecurityService,
   ) {}
 
   @post('/users')
@@ -56,17 +58,14 @@ export class UserController {
     })
     user: Omit<User, '_id'>,
   ): Promise<User> {
-    var generatedPassword = generator.generate({
-      length: 10,
-      numbers: true,
-      lowercase: true,
-      uppercase: true,
-    });
-    let cryptPassword = MD5(generatedPassword).toString();
-    user.password = cryptPassword;
-    console.log(generatedPassword);
-    console.log(cryptPassword);
-
+    var generatedPassword = this.securityService.GeneratePassword(
+      10,
+      true,
+      true,
+      true,
+    );
+    let cryptedPassword = this.securityService.CryptPassword(generatedPassword);
+    user.password = cryptedPassword;
     // Notificar contraseña al usuario
     return this.userRepository.create(user);
   }
@@ -198,12 +197,7 @@ export class UserController {
       },
     });
     if (user) {
-      var generatatedCode = generator.generate({
-        length: 6,
-        numbers: true,
-        lowercase: false,
-        uppercase: false,
-      });
+      var generatatedCode = this.securityService.GeneratePassword(6);
       console.log(generatatedCode);
       let twoFACode = {
         code: generatatedCode,
@@ -232,14 +226,14 @@ export class UserController {
       content: {
         'application/json': {
           schema: getModelSchemaRef(TwoFactorAuthenticationCode, {
-            title: 'NewUser',
+            title: '2fa',
             exclude: ['_id'],
           }),
         },
       },
     })
     codeData: Omit<TwoFactorAuthenticationCode, '_id'>,
-  ): Promise<boolean> {
+  ): Promise<string> {
     let isValid = await this.twoFactorAUthenticationCodeRepository.findOne({
       where: {
         userId: codeData.userId,
@@ -251,9 +245,12 @@ export class UserController {
       this.twoFactorAUthenticationCodeRepository.updateById(isValid._id, {
         status: true,
       });
-      return true;
+      // generar el token de jwt
+      let user = await this.userRepository.findById(codeData.userId);
+      let token = this.securityService.CreateTokenJWT(user);
+      return token;
     } else {
-      return false;
+      throw new HttpErrors[401]('Invalid code');
     }
   }
 }
