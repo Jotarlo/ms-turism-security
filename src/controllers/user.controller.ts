@@ -20,6 +20,8 @@ import {
   response,
 } from '@loopback/rest';
 import {
+  ChangePassword,
+  ResetPassword,
   TwoFactorAuthenticationCode,
   User,
   UserAuthenticationCredentials,
@@ -251,6 +253,91 @@ export class UserController {
       return token;
     } else {
       throw new HttpErrors[401]('Invalid code');
+    }
+  }
+
+  @post('/change-password')
+  @response(200, {
+    description: 'Change password of users',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(ChangePassword),
+      },
+    },
+  })
+  async changePassword(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(ChangePassword, {
+            title: 'Change Password',
+          }),
+        },
+      },
+    })
+    credentials: ChangePassword,
+  ): Promise<boolean> {
+    let user = await this.userRepository.findOne({
+      where: {
+        _id: credentials.userId,
+        password: credentials.currentPassword,
+      },
+    });
+    if (user) {
+      user.password = credentials.newPassword;
+      this.userRepository.update(user);
+      // notificar al correo del usuario que se ha cambiado la contraseña
+      return true;
+    } else {
+      throw new HttpErrors[403]('La contraseña actual no es correcta.');
+    }
+  }
+
+  @post('/reset-password')
+  @response(200, {
+    description: 'Reset password of users',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(ResetPassword),
+      },
+    },
+  })
+  // 9e3079fd68a6efcb6ebc3c86f7a877c9
+  // 7eb3c6ce82745a88d33d22decb4c5b19
+  async resetPassword(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(ResetPassword, {
+            title: 'Reset Password',
+          }),
+        },
+      },
+    })
+    credentials: ResetPassword,
+  ): Promise<boolean> {
+    let user = await this.userRepository.findOne({
+      where: {
+        username: credentials.username,
+        email: credentials.email,
+      },
+    });
+    if (user) {
+      let newPassword = this.securityService.GeneratePassword(
+        10,
+        true,
+        true,
+        true,
+      );
+      console.log(newPassword);
+
+      let cryptedPassword = this.securityService.CryptPassword(newPassword);
+      user.password = cryptedPassword;
+      this.userRepository.update(user);
+      // notificar al correo del usuario la contraseña
+      return true;
+    } else {
+      throw new HttpErrors[403]('La contraseña actual no es correcta.');
     }
   }
 }
