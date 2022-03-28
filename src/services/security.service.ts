@@ -51,7 +51,7 @@ export class SecurityService {
   VerifyToken(token: string): boolean {
     try {
       var decoded = jwt.verify(token, process.env.JWT_KEY);
-      return decoded;
+      return true;
     } catch (err) {
       return false;
     }

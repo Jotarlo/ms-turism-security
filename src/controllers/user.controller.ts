@@ -340,4 +340,16 @@ export class UserController {
       throw new HttpErrors[403]('La contraseña actual no es correcta.');
     }
   }
+
+  @post('/verify-token/{token}')
+  @response(200, {
+    description: 'Verify user token',
+  })
+  async tokenValidator(
+    @param.path.string('token')
+    token: string,
+  ): Promise<boolean> {
+    let isValid = this.securityService.VerifyToken(token);
+    return isValid;
+  }
 }
