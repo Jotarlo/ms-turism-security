@@ -48,11 +48,18 @@ export class SecurityService {
     return token;
   }
 
-  VerifyToken(token: string): boolean {
+  VerifyToken(token: string, role: string): boolean {
     try {
       var decoded = jwt.verify(token, process.env.JWT_KEY);
-      return true;
+      //console.log(decoded.data.role);
+      console.log(decoded);
+      if (decoded.data.role == role) {
+        return true;
+      } else {
+        return false;
+      }
     } catch (err) {
+      console.log(err);
       return false;
     }
   }

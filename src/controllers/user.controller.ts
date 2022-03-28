@@ -22,6 +22,7 @@ import {
 import {
   ChangePassword,
   ResetPassword,
+  TokenValidator,
   TwoFactorAuthenticationCode,
   User,
   UserAuthenticationCredentials,
@@ -302,8 +303,6 @@ export class UserController {
       },
     },
   })
-  // 9e3079fd68a6efcb6ebc3c86f7a877c9
-  // 7eb3c6ce82745a88d33d22decb4c5b19
   async resetPassword(
     @requestBody({
       content: {
@@ -341,15 +340,28 @@ export class UserController {
     }
   }
 
-  @post('/verify-token/{token}')
+  @post('/token-validator')
   @response(200, {
-    description: 'Verify user token',
+    description: 'Validate token',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(TokenValidator),
+      },
+    },
   })
   async tokenValidator(
-    @param.path.string('token')
-    token: string,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(TokenValidator, {
+            title: 'Validate a token',
+          }),
+        },
+      },
+    })
+    data: TokenValidator,
   ): Promise<boolean> {
-    let isValid = this.securityService.VerifyToken(token);
+    let isValid = this.securityService.VerifyToken(data.token, data.roleId);
     return isValid;
   }
 }
