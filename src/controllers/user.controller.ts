@@ -19,6 +19,7 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
+import {GeneralData} from '../config/general-data';
 import {
   ChangePassword,
   ResetPassword,
@@ -31,7 +32,7 @@ import {
   TwoFactorAuthenticationCodeRepository,
   UserRepository,
 } from '../repositories';
-import {SecurityService} from '../services';
+import {NotificationService, SecurityService} from '../services';
 
 export class UserController {
   constructor(
@@ -41,6 +42,8 @@ export class UserController {
     public twoFactorAUthenticationCodeRepository: TwoFactorAuthenticationCodeRepository,
     @service(SecurityService)
     public securityService: SecurityService,
+    @service(NotificationService)
+    public notificationsService: NotificationService,
   ) {}
 
   @post('/users')
@@ -69,7 +72,12 @@ export class UserController {
     );
     let cryptedPassword = this.securityService.CryptPassword(generatedPassword);
     user.password = cryptedPassword;
-    // Notificar contraseña al usuario
+    let message = `${GeneralData.message_when_user_is_created} <ul><li>Usuario: ${user.username}</li><li>Contraseña: ${generatedPassword}</li></ul>`;
+    this.notificationsService.sendEmailMessage(
+      message,
+      user.email,
+      GeneralData.subject_when_user_is_created,
+    );
     return this.userRepository.create(user);
   }
 
@@ -207,7 +215,9 @@ export class UserController {
         userId: user._id,
       };
       this.twoFactorAUthenticationCodeRepository.create(twoFACode);
-      // Enviar código al usuario
+      let message = `Hola ${user.fullname}, su código de seguridad es ${generatatedCode}`;
+      let destination = user.cellphone;
+      this.notificationsService.sendSmsMessage(message, destination);
       user.password = '';
       return user;
     } else {
@@ -248,7 +258,6 @@ export class UserController {
       this.twoFactorAUthenticationCodeRepository.updateById(isValid._id, {
         status: true,
       });
-      // generar el token de jwt
       let user = await this.userRepository.findById(codeData.userId);
       let token = this.securityService.CreateTokenJWT(user);
       return token;
@@ -360,8 +369,8 @@ export class UserController {
       },
     })
     data: TokenValidator,
-  ): Promise<boolean> {
-    let isValid = this.securityService.VerifyToken(data.token, data.roleId);
-    return isValid;
+  ): Promise<string> {
+    let message = this.securityService.VerifyToken(data.token, data.roleId);
+    return message;
   }
 }
