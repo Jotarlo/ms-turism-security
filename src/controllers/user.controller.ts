@@ -343,6 +343,12 @@ export class UserController {
       user.password = cryptedPassword;
       this.userRepository.update(user);
       // notificar al correo del usuario la contraseña
+      let message = `${GeneralData.message_when_reset_password} <strong>${newPassword}</strong>`;
+      this.notificationsService.sendEmailMessage(
+        message,
+        user.email,
+        GeneralData.subject_when_user_is_created,
+      );
       return true;
     } else {
       throw new HttpErrors[403]('La contraseña actual no es correcta.');
